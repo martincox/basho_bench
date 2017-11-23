@@ -36,6 +36,8 @@
                  dw,
                  pw,
                  rw,
+                 get_opts,
+                 put_opts,
                  content_type,
                  search_queries,
                  query_step_interval,
@@ -83,6 +85,8 @@ new(Id) ->
     RW = basho_bench_config:get(riakc_pb_rw, Replies),
     PW = basho_bench_config:get(riakc_pb_pw, Replies),
     PR = basho_bench_config:get(riakc_pb_pr, Replies),
+    GetOpts = basho_bench_config:get(riakc_get_opts, []),
+    PutOpts = basho_bench_config:get(riakc_put_opts, []),
     SearchQs = basho_bench_config:get(riakc_pb_search_queries, []),
     SearchQStepIval = basho_bench_config:get(query_step_interval, 60),
     Bucket  = basho_bench_config:get(riakc_pb_bucket, <<"test">>),
@@ -106,6 +110,8 @@ new(Id) ->
                           dw = DW,
                           rw = RW,
                           pw = PW,
+                          get_opts = GetOpts,
+                          put_opts = PutOpts,
                           content_type = CT,
                           search_queries = SearchQs,
                           query_step_interval = SearchQStepIval,
@@ -279,7 +285,7 @@ run({game, completed}, KeyGen, ValueGen, State) ->
 run(get, KeyGen, _ValueGen, State) ->
     Key = KeyGen(),
     case riakc_pb_socket:get(State#state.pid, State#state.bucket, Key,
-                             [{r, State#state.r}], State#state.timeout_read) of
+                             State#state.get_opts, State#state.timeout_read) of
         {ok, _} ->
             {ok, State};
         {error, notfound} ->
@@ -304,8 +310,7 @@ run(get_existing, KeyGen, _ValueGen, State) ->
     end;
 run(put, KeyGen, ValueGen, State) ->
     Robj = riakc_obj:new(State#state.bucket, KeyGen(), ValueGen(), State#state.content_type),
-    case riakc_pb_socket:put(State#state.pid, Robj, [{w, State#state.w},
-                                                     {dw, State#state.dw}], State#state.timeout_write) of
+    case riakc_pb_socket:put(State#state.pid, Robj, State#state.put_opts, State#state.timeout_write) of
         ok ->
             {ok, State};
         {error, disconnected} ->
